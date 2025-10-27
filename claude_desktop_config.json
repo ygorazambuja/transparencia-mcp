@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"transparencia": {
+			"command": "bun",
+			"args": ["/home/bigjuicer/Work/transparencia-mcp/index.ts"]
+		}
+	}
+}

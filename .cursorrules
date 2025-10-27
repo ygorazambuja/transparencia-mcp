@@ -1,0 +1,104 @@
+# Transparência MCP - Cursor Rules
+
+## Runtime & Dependencies
+- **ALWAYS use Bun** as runtime: `bun run`, `bun install`, never `npm`, `yarn`, `node`
+- **ALWAYS use Katalist** for HTTP requests: `import { Katalist } from "katalist"`
+- **NEVER use** fetch, axios, node-fetch, or any other HTTP client
+- **ALWAYS use Zod** for schema validation with detailed `.describe()` calls
+
+## Project Structure
+- **API methods** go in `src/pedrogomes/*.ts`
+- **HTTP schemas** go in `http-schemas/*.ts` as Zod arrays
+- **Constants** go in `src/shared/constants.ts`
+- **Main MCP server** is `index.ts`
+
+## Code Patterns
+
+### Schema Definition
+```typescript
+export const GetDataSchema = z.object({
+  exercicio: z
+    .string()
+    .optional()
+    .describe("Ano fiscal (formato: '2023', '2024', etc.). Se não informado, será usado o ano atual."),
+  empresa: z
+    .string()
+    .describe("Código do setor/empresa (formato: '1', '2', etc.). Exemplo: '1'"),
+});
+```
+
+### API Function Pattern
+```typescript
+export async function getData(input: z.infer<typeof GetDataSearchSchema>) {
+  const currentYear = new Date().getFullYear().toString();
+  const exercicioToUse = input.exercicio || currentYear;
+
+  // 1. DefineExercicio - get session cookies
+  const defineExercicio = await kat.get(
+    `${BASE_URL}/Endpoint/?Listagem=DefineExercicio&ConectarExercicio=${exercicioToUse}`
+  );
+  const cookies = defineExercicio.headers.get("Set-Cookie");
+
+  // 2. Main API call with cookies
+  const response = await kat.get<SchemaType>(
+    `${BASE_URL}/Endpoint/?Listagem=Data&...params`,
+    { headers: { Cookie: cookies ?? "" } }
+  );
+
+  return response.json() ?? [];
+}
+```
+
+### Error Handling
+```typescript
+try {
+  const result = await getData(input);
+  return result ?? [];
+} catch (error) {
+  console.error("Erro:", error);
+  return [];
+}
+```
+
+### Client-side Filtering
+```typescript
+return data.filter((item) => {
+  if (filtro && item.CAMPO) {
+    if (!item.CAMPO.toLowerCase().includes(filtro.toLowerCase())) {
+      return false;
+    }
+  }
+  return true;
+});
+```
+
+## API Conventions
+- **Two-step API calls**: Always DefineExercicio first, then main call with cookies
+- **Default exercicio**: `new Date().getFullYear().toString()`
+- **Query params**: Use `Listagem=`, `Empresa=`, `Exercicio=`, etc.
+- **Response format**: Arrays with UPPERCASE field names
+- **Categories**: `/Receitas/`, `/Despesas/`, `/LicitacoesEContratos/`, `/Pessoal/`
+
+## MCP Tool Registration
+```typescript
+mcpServer.tool(
+  "tool-name",
+  "Descrição detalhada da ferramenta",
+  GetDataSearchSchema.shape,
+  async (input) => {
+    const result = await getData(input);
+    return {
+      content: [{ type: "text", text: JSON.stringify({ toolName: result }) }],
+    };
+  }
+);
+```
+
+## Best Practices
+- **Always validate input** with Zod schemas
+- **Use detailed descriptions** in schema fields
+- **Return empty arrays** on errors, never throw
+- **Use current year** as default for exercicio parameter
+- **Apply filters client-side** after API response
+- **Use Bun.file()** instead of fs methods when possible
+- **Import types** from http-schemas for type safety
