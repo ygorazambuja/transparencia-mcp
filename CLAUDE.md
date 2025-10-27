@@ -562,3 +562,6 @@ try {
 - [MCP Specification](https://modelcontextprotocol.io/)
 - [Zod Documentation](https://zod.dev/)
 - [Katalist](https://github.com/katalist-ai/katalist)
+
+
+FIORILLI_BASE_URL=http://45.6.108.122:5656/transparencia/s
